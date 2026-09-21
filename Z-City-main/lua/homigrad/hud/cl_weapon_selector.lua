@@ -3,6 +3,40 @@ hg = hg or {}
 hg.WeaponSelector = hg.WeaponSelector or {}
 local WS = hg.WeaponSelector
 
+-- ============================================================
+--  НАСТРОЙКИ ЦВЕТОВ
+-- ============================================================
+local CYCLE_TIME    = 4                     -- секунд на полный круг переливания
+local OUTLINE_COLOR = Color(255, 105, 180)  -- розовая обводка
+local OUTLINE_ALL   = false                 -- true = обводка у всех плашек, false = только у выбранной (как в оригинале)
+
+-- белый -> чёрный -> розовый -> чёрный -> (снова белый) - то есть "туда и обратно"
+local PULSE_KEYS = {
+    { 255, 255, 255 },
+    { 0,   0,   0   },
+    { 255, 0,   128 },
+    { 0,   0,   0   },
+}
+
+local function PulseRGB()
+    local n   = #PULSE_KEYS
+    local pos = ((CurTime() / CYCLE_TIME) % 1) * n
+    local i   = math.floor(pos)
+    local t   = pos - i
+    local f   = t * t * (3 - 2 * t) -- плавный переход
+
+    local a = PULSE_KEYS[i % n + 1]
+    local b = PULSE_KEYS[(i + 1) % n + 1]
+
+    return Lerp(f, a[1], b[1]), Lerp(f, a[2], b[2]), Lerp(f, a[3], b[3])
+end
+
+-- чёрный или белый текст в зависимости от яркости фона, чтобы название читалось на любой фазе
+local function TextShade(r, g, b)
+    return (r * 0.299 + g * 0.587 + b * 0.114) > 140 and 0 or 255
+end
+-- ============================================================
+
 function WS.GetPrintName( self )
 	local class = self:GetClass()
 	local phrase = language.GetPhrase(class)
@@ -48,7 +82,7 @@ end
 
 local scrW, scrH = ScrW(), ScrH()
 
-local AcsentColor = Color(155,0,0)
+local AcsentColor = Color(255,0,128)
 local gradient_u = Material("vgui/gradient-d")
 
 function WS.WeaponSelectorDraw( ply )
@@ -63,6 +97,12 @@ function WS.WeaponSelectorDraw( ply )
     local SelectedWep = WS.GetSelectedWeapon()
     if not IsValid(SelectedWep) then return end
     WS.Transparent = LerpFT( 0.2, WS.Transparent, math.min( WS.Show - CurTime(), 1 ) )
+
+    -- текущий переливающийся цвет (один на кадр для всех плашек)
+    local PulseR, PulseG, PulseB = PulseRGB()
+    local shade = TextShade(PulseR, PulseG, PulseB)
+    local PlateTextColor = Color(shade, shade, shade)
+
     --draw.RoundedBox(0,(scrW / 2)-10,(scrH *0.15),20,20, color_red )
     local SuperAmmout = 0
     local AmmoutSlots = 0
@@ -102,13 +142,15 @@ function WS.WeaponSelectorDraw( ply )
             if slotTbl[wepId-1] and SelectedWep == slotTbl[wepId-1] then
                 lastPos = (scrH *0.095) 
             end
+
+            -- фон плашки: переливается белый -> чёрный -> розовый -> чёрный -> белый
             draw.RoundedBox(
                 0,
                 position,
                 (scrH * 0.025) * (Ammout) + (scrH * 0.05) + lastPos,
                 sizeX,
                 sizeH, 
-                ColorAlpha(color_black,WS.Transparent*205) 
+                Color(PulseR, PulseG, PulseB, WS.Transparent*205) 
             )
             draw.RoundedBox(
                 0,
@@ -118,16 +160,21 @@ function WS.WeaponSelectorDraw( ply )
                 2, 
                 ColorAlpha(color_black,WS.Transparent*205) 
             )
-            surface.SetDrawColor( 155, 0, 0, WS.Transparent*( SelectedWep == wep and 200 or 0 )  )
+
+            -- градиент выбранной плашки (был красный, стал розовый)
+            surface.SetDrawColor( AcsentColor.r, AcsentColor.g, AcsentColor.b, WS.Transparent*( SelectedWep == wep and 200 or 0 )  )
             surface.SetMaterial( gradient_u )
             surface.DrawTexturedRect( position, (scrH * 0.025) * (Ammout) + (scrH * 0.05) + lastPos, sizeX, sizeH )
-            if SelectedWep == wep then
-                surface.SetDrawColor( 255, 0, 0, WS.Transparent*155 )
+
+            -- розовая обводка
+            if SelectedWep == wep or OUTLINE_ALL then
+                surface.SetDrawColor( OUTLINE_COLOR.r, OUTLINE_COLOR.g, OUTLINE_COLOR.b, WS.Transparent*( SelectedWep == wep and 255 or 170 ) )
 	            surface.DrawOutlinedRect( position, (scrH * 0.025) * (Ammout) + (scrH * 0.05) + lastPos, sizeX, sizeH, 2 )
             end
+
             local sizeHi = (scrH *0.025) * (Ammout) + (scrH * 0.05) + lastPos
             sizeHi = sizeHi + 2.5
-            WS.DrawText( WS.GetPrintName(wep), "HomigradFontSmall", position + sizeX/2, sizeHi, ColorAlpha(color_white,WS.Transparent*255) ,TEXT_ALIGN_CENTER )
+            WS.DrawText( WS.GetPrintName(wep), "HomigradFontSmall", position + sizeX/2, sizeHi, ColorAlpha(PlateTextColor,WS.Transparent*255) ,TEXT_ALIGN_CENTER )
             Ammout = Ammout + 1
 
             if SelectedWep == wep and wep.DrawWeaponSelection then
