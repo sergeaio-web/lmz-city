@@ -72,8 +72,8 @@ hook.Add("HUDDrawPickupHistory", "HidePickedStuff", function()
 	return false
 end)
 
---local hg_coolvetica = ConVarExists("hg_coolvetica") and GetConVar("hg_coolvetica") or CreateClientConVar("hg_coolvetica", "0", true, false, "changes every text to coolvetica because its good", 0, 1)
-local hg_font = ConVarExists("hg_font") and GetConVar("hg_font") or CreateClientConVar("hg_font", "Bahnschrift", true, false, "Change UI text font")
+--local hg_coolvetica = ConVarExists("hg_coolvetica") and GetConVar("hg_coolvetica") or CreateClientConVar("hg_coolvetica", "0", true, false, "changes every text to coolvetica because its good", 0[...]
+local hg_font = ConVarExists("hg_font") and GetConVar("hg_font") or CreateClientConVar("hg_font", "Bahnschrift", true, false, "Измени шрифт текста UI")
 local font = function() -- hg_coolvetica:GetBool() and "Coolvetica" or "Bahnschrift"
     local usefont = "Bahnschrift"
 
@@ -184,11 +184,18 @@ if IsValid(MENUPANELHUYHUY) then
 end
 
 hg.radialOptions = hg.radialOptions or {}
-local colBlack = Color(0, 0, 0, 152)
-local colOption = Color(40, 0, 55, 152)
+local colBlack = Color(0, 0, 0, 175)
+local colOption = Color(28, 8, 30, 190)
 local colWhite = Color(255, 255, 255, 255)
-local colWhiteTransparent = Color(176, 40, 40, 100)
 local colTransparent = Color(0, 0, 0, 0)
+
+-- Мягкие цвета для переливающегося меню
+local radialWhite = Color(200, 200, 210, 180)
+local radialWhiteBright = Color(220, 220, 235, 240)
+local radialBlack = Color(0, 0, 0, 240)
+local radialDark = Color(15, 0, 15, 180)
+local radialPink = Color(255, 120, 200, 255)
+
 local matHuy = Material("vgui/white")
 local vecXY = Vector(0, 0)
 local vecDown = Vector(0, 1)
@@ -204,6 +211,90 @@ local taitorCol = Color(155,0,0)
 local menuPanel
 
 local colBack = Color(0,0,0)
+
+-- Функция смешивания мягкого белого и черного
+local function RadialGradientColor(progress, alpha)
+	progress = math.Clamp(progress, 0, 1)
+	local color = radialBlack:Lerp(radialWhite, progress)
+	color.a = alpha or 255
+	return color
+end
+
+-- Функция рисования переливающейся границы сектора
+local function DrawRadialSectorOutline(x, y, radius, startAngle, endAngle, segments, selected)
+	local currentTime = CurTime()
+	local animatedProgress = math.sin(currentTime * 3 + startAngle * 0.03) * 0.5 + 0.5
+	
+	if selected then
+		animatedProgress = math.Clamp(animatedProgress + 0.35, 0, 1)
+	end
+
+	local lineColor = RadialGradientColor(animatedProgress, selected and 255 or 180)
+	surface.SetDrawColor(lineColor)
+
+	-- Левая граница
+	local startRad = math.rad(startAngle)
+	local startX = x + math.cos(startRad) * radius
+	local startY = y + math.sin(startRad) * radius
+	surface.DrawLine(x, y, startX, startY)
+
+	-- Правая граница
+	local endRad = math.rad(endAngle)
+	local endX = x + math.cos(endRad) * radius
+	local endY = y + math.sin(endRad) * radius
+	surface.DrawLine(x, y, endX, endY)
+
+	-- Внешняя дуга
+	local previousX = startX
+	local previousY = startY
+
+	for i = 1, segments do
+		local fraction = i / segments
+		local angle = math.rad(Lerp(fraction, startAngle, endAngle))
+		local currentX = x + math.cos(angle) * radius
+		local currentY = y + math.sin(angle) * radius
+		surface.DrawLine(previousX, previousY, currentX, currentY)
+		previousX = currentX
+		previousY = currentY
+	end
+end
+
+-- Функция рисования розового шарика, движущегося по площади вкладки
+local function DrawFollowingBall(x, y, radiusStart, radiusEnd, startAngle, endAngle, selected)
+	if not selected then return end
+	
+	local currentTime = CurTime()
+	
+	-- Шарик движется по спирали внутри вкладки от центра к границе и обратно
+	local moveProgress = (currentTime * 1.5) % 1
+	
+	-- Интерполируем угол от начала к концу
+	local angle = math.rad(Lerp(moveProgress, startAngle, endAngle))
+	
+	-- Интерполируем радиус от центра к границе и обратно
+	local radiusProgress = math.sin(currentTime * 2) * 0.5 + 0.5
+	local currentRadius = Lerp(radiusProgress, radiusStart, radiusEnd)
+	
+	local ballX = x + math.cos(angle) * currentRadius
+	local ballY = y + math.sin(angle) * currentRadius
+	local ballSize = 10
+	
+	-- Пульсирующий размер шарика
+	local pulseSize = ballSize + math.sin(currentTime * 5) * 2
+	
+	-- Рисуем внешнее свечение розового шарика
+	surface.SetDrawColor(radialPink.r, radialPink.g, radialPink.b, 80)
+	draw.Circle(ballX, ballY, pulseSize + 6, 32)
+	
+	-- Основной розовый шарик
+	surface.SetDrawColor(radialPink)
+	draw.Circle(ballX, ballY, pulseSize, 32)
+	
+	-- Светящееся ядро шарика
+	surface.SetDrawColor(255, 150, 220, 220)
+	draw.Circle(ballX, ballY, pulseSize * 0.5, 24)
+end
+
 local surface, draw, hook, IsColor, IsValid, math, input = surface, draw, hook, IsColor, IsValid, math, input
 local function CreateRadialMenu(options_arg, bAutoClose)
 	local sizeX, sizeY = ScrW(), ScrH()
@@ -301,7 +392,7 @@ local function CreateRadialMenu(options_arg, bAutoClose)
 			optionSelected[num] = optionSelected[num] or 0
 			optionSelected[num] = LerpFT(0.1, optionSelected[num], isMouseIntersecting and 1 or 0)
 
-			if option[3] then --// Multibutton
+			if option[3] then --// Мультивариант
 				surface.SetMaterial(matHuy)
 				surface.SetDrawColor(isMouseIntersecting and colBlack or colBlack)
 				draw.CirclePart(w / 2, h / 2, r, 40, #options, num)
@@ -313,7 +404,7 @@ local function CreateRadialMenu(options_arg, bAutoClose)
 				for i, opt in pairs(option[4]) do
 					local selected = selectedPart == i
 					surface.SetMaterial(matHuy)
-					surface.SetDrawColor((selected and isMouseIntersecting) and colWhiteTransparent or colTransparent)
+					surface.SetDrawColor((selected and isMouseIntersecting) and colTransparent or colTransparent)
 					draw.CirclePart(w / 2, h / 2, r * (i / count), 40, #options, num)
 					local a = -partDeg * num - partDeg / 2
 					a = math.rad(a) + math.pi
@@ -331,27 +422,83 @@ local function CreateRadialMenu(options_arg, bAutoClose)
 			end
 			
 			--print(options_arg ~= nil and true or false)
+			local isSelected = isMouseIntersecting
+			local selectedAmount = optionSelected[num] or 0
+
 			surface.SetMaterial(matHuy)
-			if option[6] and IsColor(option[6]) then --// Custom color
-				if option[7] and IsColor(option[7]) then --// Custom select color
-					surface.SetDrawColor(option[7]:Lerp(option[6], 1 - optionSelected[num]))
-				else
-					surface.SetDrawColor(colWhiteTransparent:Lerp(option[6], 1 - optionSelected[num]))
-				end
+
+			local normalColor = radialDark
+			local selectedColor = radialWhite:Lerp(radialWhiteBright, selectedAmount)
+
+			-- Если сектор выбран — он становится мягким белым с прозрачностью
+			if isSelected then
+				selectedColor.a = 70 + selectedAmount * 40
+				surface.SetDrawColor(selectedColor)
 			else
-				if option[7] and IsColor(option[7]) then --// Custom select color
-					surface.SetDrawColor(option[7]:Lerp(options_arg ~= nil and colOption or colBlack, 1 - optionSelected[num]))
-				else
-					surface.SetDrawColor(colWhiteTransparent:Lerp(options_arg ~= nil and colOption or colBlack, 1 - optionSelected[num]))
-				end
+				surface.SetDrawColor(normalColor)
 			end
 
-			draw.CirclePart(w / 2, h / 2, r * (1 + 0.1 * optionSelected[num]), 30, #options, num)
+			-- Рисуем сам сектор
+			draw.CirclePart(
+				w / 2,
+				h / 2,
+				r * (1 + 0.1 * selectedAmount),
+				40,
+				#options,
+				num
+			)
+
+			-- Получаем углы текущего сектора
+			local sectorAngle = 360 / #options
+			local startAngle = num * sectorAngle - 90
+			local endAngle = (num + 1) * sectorAngle - 90
+
+			-- Мягкая белая линия вокруг каждого сектора
+			DrawRadialSectorOutline(
+				w / 2,
+				h / 2,
+				r * (1 + 0.1 * selectedAmount),
+				startAngle,
+				endAngle,
+				24,
+				isSelected
+			)
+
+			-- Розовый шарик, движущийся по всей площади выбранного сектора
+			DrawFollowingBall(
+				w / 2,
+				h / 2,
+				r * 0.3,  -- Начальный радиус (ближе к центру)
+				r * (1 + 0.1 * selectedAmount),  -- Конечный радиус (граница сектора)
+				startAngle,
+				endAngle,
+				isSelected
+			)
+
+			-- Дополнительное мягкое свечение выбранного сектора
+			if isSelected then
+				surface.SetDrawColor(
+					220,
+					220,
+					235,
+					15 + math.sin(CurTime() * 5) * 8
+				)
+
+				draw.CirclePart(
+					w / 2,
+					h / 2,
+					r * (1.02 + 0.1 * selectedAmount),
+					40,
+					#options,
+					num
+				)
+			end
+
 			local a = -partDeg * num - partDeg / 2
 			a = math.rad(a) + math.pi
 
 			--PrintTable(option)
-			if option[5] then --// Icon
+			if option[5] then --// Иконка
 				local a = -partDeg * num - partDeg / 2
 				a = math.rad(a) + math.pi
 
@@ -362,7 +509,7 @@ local function CreateRadialMenu(options_arg, bAutoClose)
 		
 				surface.DrawTexturedRect(sizeW, sizeH, scrW * 0.1, scrH * 0.1)
 			else
-				local txt = option[2] --// Text
+				local txt = option[2] --// Текст
 				if txt and !options_old then return end
 				if paining then
 					math.randomseed(math.Round(CurTime() / 5 + num, 0))
@@ -525,7 +672,7 @@ end
 hook.Add("radialOptions", "77", function()
 	local organism = lply.organism or {}
 	if not organism.otrub and IsValid(lply:GetActiveWeapon()) and lply:GetActiveWeapon():GetClass() ~= "weapon_hands_sh" then
-		local tbl = {dropWeapon, "Drop Weapon"}
+		local tbl = {dropWeapon, "Выбросить оружие"}
 		hg.radialOptions[#hg.radialOptions + 1] = tbl
 	end
 end)
@@ -577,7 +724,7 @@ hook.Add("radialOptions", "7", function()
 				end
 				CreateRadialMenu(commands)
 			end
-		end, "Do Gesture\nRMB - Menu"}
+		end, "Жест\nПКМ - Меню"}
         hg.radialOptions[#hg.radialOptions + 1] = tbl
     end
 end)
@@ -621,7 +768,7 @@ end
 
 --hook.Add("HUDPaint","homigrad-copyright",function()
 	--local i = 1
-	--CopyRight("ЖДИ ДОКС ЖДИ СВАТ","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()*1)*0.5)
+	--CopyRight("ЖДИ ДОКС ЖДИ СВАТ","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()[...]
 --end)
 
 hook.Add("HUDPaint","Identifier",function()
@@ -654,21 +801,21 @@ hook.Add("HUDPaint","Identifier",function()
 	end
 end)
 
---sound.PlayURL("https://cdn.discordapp.com/attachments/1254022273661145108/1257385761414582382/pon_pon_016eb317d_1.mp4?ex=66882bbe&is=6686da3e&hm=429f0e4427bdc9d80673d3bfa2eccf48221ae5572ec508fb7699274c2c7041ef&","",function() end)
+--sound.PlayURL("https://cdn.discordapp.com/attachments/1254022273661145108/1257385761414582382/pon_pon_016eb317d_1.mp4?ex=66882bbe&is=6686da3e&hm=429f0e4427bdc9d80673d3bfa2eccf48221ae5572ec508fb[...]
 
 function scare()
 	-- hook.Add("RenderScreenspaceEffects","Scare",function()
 		-- for i = 1, 5 do
-		-- CopyRight("Плывиски","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()*1)*0.5)
+		-- CopyRight("Плывиски","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()[...]
 		-- end
 	-- end)
 	-- for i = 1, 15 do
-		-- sound.PlayURL("https://cdn.discordapp.com/attachments/1254022273661145108/1257385761414582382/pon_pon_016eb317d_1.mp4?ex=66882bbe&is=6686da3e&hm=429f0e4427bdc9d80673d3bfa2eccf48221ae5572ec508fb7699274c2c7041ef&","",function() end)
+		-- sound.PlayURL("https://cdn.discordapp.com/attachments/1254022273661145108/1257385761414582382/pon_pon_016eb317d_1.mp4?ex=66882bbe&is=6686da3e&hm=429f0e4427bdc9d80673d3bfa2eccf48221ae5572ec50[...]
 	-- end
 end
 
 local hint
-local hg_hints = ConVarExists("hg_hints") and GetConVar("hg_hints") or CreateClientConVar("hg_hints", "1", true, false, "Toggle UI hints")
+local hg_hints = ConVarExists("hg_hints") and GetConVar("hg_hints") or CreateClientConVar("hg_hints", "1", true, false, "Включить подсказки интерфейса")
 
 local HintBackgroundColor = Color( 0, 0, 0, 200 )
 
@@ -743,7 +890,7 @@ end)
 -- No. fuc kyouy
 if game.SinglePlayer() then
 	hook.Add("HUDPaint","Exit the singleplayer",function()
-		draw.SimpleText("Z-City is not meant to be played in singleplayer, in map selection menu change SINGLEPLAYER (green button top right corner) to 2 players or any.", "HomigradFontMedium", ScrW() / 2,ScrH() / 2, nil, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		draw.SimpleText("A lot of stuff won't work and we won't provide any fixes to singleplayer EVER", "HomigradFontMedium", ScrW() / 2,ScrH() * 7 / 12, nil,TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Z-City не предназначена для игры в одиночку, в меню выбора карты измените ОДИНОЧНАЯ ИГРА (зелёная кнопка в углу) на 2 игрока или больше.", "HomigradFontMedium", ScrW() / 2,ScrH() * 2 / 12, nil,TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Множество функций не будет работать и мы не будем предоставлять исправления для одиночной игры НИКОГДА", "HomigradFontMedium", ScrW() / 2,ScrH() * 7 / 12, nil,TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end)
 end

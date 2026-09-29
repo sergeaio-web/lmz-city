@@ -410,11 +410,11 @@ local function OpenMenu()
 			local wa = math.ease.OutCubic(math.Clamp((CurTime() - (self.waitingAt or 0) - 0.3) / 0.7, 0, 1))
 			local yoff = (1 - wa) * h * 0.03
 
-			draw.SimpleText("WAITING FOR PLAYERS", "CRI_Title", w / 2, h * 0.42 + yoff, ColorAlpha(criWhite, 255 * wa), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText("Ожидание игроков...", "CRI_Title", w / 2, h * 0.42 + yoff, ColorAlpha(criWhite, 255 * wa), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 			draw.SimpleText(readyN .. " / " .. readyT, "CRI_Huge", w / 2, h * 0.54 + yoff, ColorAlpha(criRed, 255 * wa), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
 			local left = math.max(0, (zb.ROUND_BEGIN or 0) - CurTime())
-			draw.SimpleText("THE ROUND WILL START IN " .. string.FormattedTime(left, "%02i:%02i"), "CRI_Med", w / 2, h * 0.66 + yoff, ColorAlpha(criDim, 200 * wa), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText("Раунд начнется через..." .. string.FormattedTime(left, "%02i:%02i"), "CRI_Med", w / 2, h * 0.66 + yoff, ColorAlpha(criDim, 200 * wa), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		end
 	end
 
@@ -498,10 +498,10 @@ local function OpenMenu()
 		end
 
 		for i, data in ipairs({
-			{"Start Game", StartGame},
-			{"Settings", function() Switch("settings") end},
-			{"Customization", function() Switch("custom") end},
-			{"How to Play", function() Switch("howto") end},
+			{"Начать игру", StartGame},
+			{"Настройки", function() Switch("settings") end},
+			{"Кастомизация", function() Switch("custom") end},
+			{"Как играть", function() Switch("howto") end},
 		}) do
 			local b = vgui.Create("DButton", scr)
 			b:SetText("")
@@ -858,21 +858,21 @@ local function OpenMenu()
 		local blue = "<colour=110,150,255,255>"
 		local dim = "<colour=170,140,140,255>"
 
-		local text1 = "<font=CRI_Med>" .. white .. "THE BASICS YOU WILL NEED TO PLAY</colour></font>\n\n"
-			.. "<font=CRI_Small>" .. white .. "1. PLAYING AS A </colour>" .. red .. "SUSPECT</colour>\n\n"
-			.. white .. "If you become a </colour>" .. red .. "suspect</colour>" .. white
-			.. ", you cannot waste a single minute. First of all, scan the area around you: barricade the doors with props, board up the windows, do everything you can so the </colour>"
-			.. blue .. "entry team</colour>" .. white
-			.. " has as much trouble as possible trying to breach the building. Understand one thing - only teamwork decides whether you win this round or not. Unlike the entry team you don't have serious firepower: your weapons are fairly weak and hitting an operator in the chest won't do you much good. Avoid direct contact with the </colour>"
-			.. blue .. "operators</colour>" .. white
-			.. " and set up ambushes, attacking them from behind. If you are an accurate shooter, the best body part to hit an operator in is the face. If you are not so sure you can hit the face - shoot the legs and arms, those are the most vulnerable spots of an operator.</colour></font>"
+		local text1 = "<font=CRI_Med>" .. white .. "Основы, необходимые для игры</colour></font>\n\n"
+			.. "<font=CRI_Small>" .. white .. "1. ИГРАЯ ЗА </colour>" .. red .. "ПОДОЗРЕВАЕМОГО</colour>\n\n"
+			.. white .. "Если вы станете </colour>" .. red .. "подозреваемым</colour>" .. white
+			.. ", Нельзя терять ни минуты. Прежде всего, осмотритесь вокруг: забаррикадируйте двери подпорками, заколотите окна досками, сделайте все возможное, чтобы </colour>"
+			.. blue .. "спецназ</colour>" .. white
+			.. " Постарайтесь изо всех сил прорваться в здание. Поймите одно: только командная работа решит, выиграете вы этот раунд или нет. В отличие от штурмовой группы, у вас нет серьёзной огневой мощи: ваше оружие довольно слабое, и попадание в грудь оперативнику вам мало чем поможет. Избегайте прямого контакта с... </colour>"
+			.. blue .. "оперативниками</colour>" .. white
+			.. " ...и устраивайте засады, атакуя их с тыла. Если вы меткий стрелок, лучше всего целиться спецназу в лицо. Если же вы не уверены, что сможете попасть в лицо, — стреляйте по ногам и рукам; это самые уязвимые места спецназа.</colour></font>"
 
 		local textImp = "<font=CRI_Small>" .. red
-			.. "IMPORTANT!!! Do not leave the building under any circumstances, otherwise your skull will be shattered by a .338 caliber round. You have been warned.</colour></font>"
+			.. "ВАЖНО!!! Ни при каких обстоятельствах не покидайте здание, иначе ваш череп будет раздроблен пулей калибра .338. Вы предупреждены.</colour></font>"
 
-		local text2 = "<font=CRI_Small>" .. white .. "2. PLAYING AS THE </colour>" .. blue .. "ENTRY TEAM</colour>\n\n" .. white
-			.. "While you are in spectators you have the opportunity to analyze the situation with your team and prepare in advance. You have the advantage of good equipment and powerful weapons. Your key to victory is teamwork: hold the formation together to clear every corner of the building. Don't forget about your six o'clock - the operator at the back of the stack should watch the team's rear to avoid ambushes.\n\nIf there are 20 players, a sixth operator will join your team - the sniper. His task is to watch the windows of the building and report all the activity he observes to you.</colour>\n\n"
-			.. dim .. "More content may be added later.</colour></font>"
+		local text2 = "<font=CRI_Small>" .. white .. "2. ИГРАЯ ЗА </colour>" .. blue .. "Спецназ</colour>\n\n" .. white
+			.. "Находясь в режиме наблюдения, вы можете проанализировать обстановку вместе с командой и заранее подготовиться. У вас есть преимущество в виде качественного снаряжения и мощного вооружения. Залог победы — слаженная командная работа: действуйте сообща и тщательно зачищайте каждый угол здания. Не забывайте следить за тылом: замыкающий в группе должен контролировать пространство позади отряда, чтобы не попасть в засаду.\n\nЕсли в игре участвуют 20 игроков, к вашей команде присоединится шестой оперативник — снайпер. Его задача — следить за окнами здания и докладывать вам обо всех замеченных действиях.</colour>\n\n"
+			.. dim .. "Позже может быть добавлен дополнительный контент.</colour></font>"
 
 		local body = vgui.Create("DPanel", scroll)
 		body:Dock(TOP)
@@ -948,20 +948,20 @@ end)
 
 local teams = {
 	[0] = {
-		name = "A SWAT OPERATOR",
-		objective = "Negotiations failed. You will deploy when SWAT arrives, stand by...",
+		name = "Боец спецназа",
+		objective = "Переговоры провалились. Выдвигайтесь по прибытии спецназа, ожидайте команды...",
 		color = Color(70, 70, 255)
 	},
 	[1] = {
-		name = "A SUSPECT",
-		objective = "This is my fucking house, bitches, I can do what I want.",
+		name = "Подозравемый",
+		objective = "Это мой грёбаный дом, суки, что хочу то и делаю!",
 		color = Color(228, 49, 49)
 	},
 }
 
 local spectatorInfo = {
-	name = "A SPECTATOR",
-	objective = "The lobby is full, you are spectating this round.",
+	name = "Наблюдатель",
+	objective = "Лобби заполнено, вы наблюдаете за этим раундом.",
 	color = Color(160, 160, 160)
 }
 
@@ -1009,24 +1009,24 @@ function MODE:HUDPaint()
 					local ratio = endStats.total > 0 and clean / endStats.total or 0
 
 					if ratio >= 0.7 then
-						title, titleCol = "MISSION ACCOMPLISHED", Color(90, 200, 90)
+						title, titleCol = "МИССИЯ ВЫПОЛНЕНА", Color(90, 200, 90)
 					elseif ratio >= 0.35 then
-						title, titleCol = "SLOPPY MISSION", Color(230, 190, 60)
+						title, titleCol = "НЕАККУРАТНО ВЫПОЛНЕНАЯ МИССИЯ", Color(230, 190, 60)
 					else
-						title, titleCol = "DISASTROUS MISSION", Color(235, 120, 45)
+						title, titleCol = "КАТОСТРАФИЧЕСКАЯ МИССИЯ", Color(235, 120, 45)
 					end
 				elseif endStats.winner == 2 then
-					title, titleCol = "MISSION FAILED", criRed
+					title, titleCol = "МИССИЯ ПРОВАЛЕНА", criRed
 				else
-					title, titleCol = "OPERATION OVER", criDim
+					title, titleCol = "ОПЕРАЦИЯ ЗАВЕРШЕНА", criDim
 				end
 
 				draw.SimpleText("CRISIS RESPONSE", "CRI_Med", sw * 0.5, sh * 0.14, ColorAlpha(criRedDark, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 				draw.SimpleText(title, "CRI_Title", sw * 0.5, sh * 0.32, ColorAlpha(titleCol, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
-				draw.SimpleText("SUSPECTS KILLED: " .. endStats.killed .. " / " .. endStats.total, "CRI_Med", sw * 0.5, sh * 0.48, ColorAlpha(criWhite, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-				draw.SimpleText("INCAPACITATED: " .. endStats.incap, "CRI_Med", sw * 0.5, sh * 0.55, ColorAlpha(criWhite, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-				draw.SimpleText("ARRESTED: " .. endStats.arrested, "CRI_Med", sw * 0.5, sh * 0.62, ColorAlpha(criWhite, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				draw.SimpleText("ПОДОЗРЕВАЕМЫХ УБИТО: " .. endStats.killed .. " / " .. endStats.total, "CRI_Med", sw * 0.5, sh * 0.48, ColorAlpha(criWhite, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				draw.SimpleText("ИНВАЛИДОВ: " .. endStats.incap, "CRI_Med", sw * 0.5, sh * 0.55, ColorAlpha(criWhite, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				draw.SimpleText("АРРЕСТОВАНО: " .. endStats.arrested, "CRI_Med", sw * 0.5, sh * 0.62, ColorAlpha(criWhite, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 			end
 		else
 			endStats = nil
@@ -1051,8 +1051,8 @@ function MODE:HUDPaint()
 				local info = teams[lply:Team()] or spectatorInfo
 				local textAlpha = math.min(alpha, 255 * math.Clamp((t - 1.5) / 0.7, 0, 1))
 
-				draw.SimpleText("CRISIS RESPONSE", "CRI_Title", sw * 0.5, sh * 0.12, ColorAlpha(criRed, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-				draw.SimpleText("YOU ARE " .. info.name, "CRI_Title", sw * 0.5, sh * 0.5, ColorAlpha(info.color, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				draw.SimpleText("Кризисная ситуация", "CRI_Title", sw * 0.5, sh * 0.12, ColorAlpha(criRed, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				draw.SimpleText("Вы:" .. info.name, "CRI_Title", sw * 0.5, sh * 0.5, ColorAlpha(info.color, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 				draw.SimpleText(info.objective, "CRI_Med", sw * 0.5, sh * 0.6, ColorAlpha(criWhite, textAlpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 			end
 		else
@@ -1064,7 +1064,7 @@ function MODE:HUDPaint()
 
 	if zb.ROUND_BEGIN + 90 > CurTime() and zb.ROUND_BEGIN < CurTime() then
 		local color = Color(255 * -math.sin(CurTime() * 3), 25, 255 * math.sin(CurTime() * 3))
-		local text = "SWAT will arrive in: " .. string.FormattedTime(zb.ROUND_BEGIN + 90 - CurTime(), "%02i:%02i")
+		local text = "Спецназ прибудет через: " .. string.FormattedTime(zb.ROUND_BEGIN + 90 - CurTime(), "%02i:%02i")
 		draw.SimpleText(text, "CRI_Med", sw * 0.02, sh * 0.95, Color(0, 0, 0), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 		draw.SimpleText(text, "CRI_Med", sw * 0.02 - 2, sh * 0.95 - 2, color, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 	end

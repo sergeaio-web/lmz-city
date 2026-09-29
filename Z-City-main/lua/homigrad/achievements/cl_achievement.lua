@@ -1,261 +1,896 @@
+if SERVER then return end
+
 hg.achievements = hg.achievements or {}
-hg.achievements.achievements_data = hg.achievements.achievements_data or {}
-hg.achievements.achievements_data.player_achievements = hg.achievements.achievements_data.player_achievements or {}
+hg.achievements.achievements_data =
+    hg.achievements.achievements_data or {}
+
+hg.achievements.achievements_data.player_achievements =
+    hg.achievements.achievements_data.player_achievements or {}
+
 hg.achievements.achievements_data.created_achevements = {}
 
-hg.achievements.MenuPanel = hg.achievements.MenuPanel or nil
+hg.achievements.MenuPanel =
+    hg.achievements.MenuPanel or nil
 
-local curent_panel_ach  
-concommand.Add("hg_achievements",function()
-    --hg.DrawAchievmentsMenu() doesn't work as for 15.02.2026 | from bogler with love 🥴
-    print('use esc menu')
+local curent_panel_ach
+
+concommand.Add("hg_achievements", function()
+    print("use esc menu")
 end)
 
 BlurBackground = BlurBackground or hg.DrawBlur
-local gradient_u = Material("vgui/gradient-u")
-gradient_r = Material("vgui/gradient-r")
 
-local function PaintButton(self,w,h)
-    surface.SetDrawColor(155, 0, 0, 108)
-    surface.SetMaterial(gradient_l)
-    surface.DrawTexturedRect( 0, 0, w, h )
+local gradient_u = Material("vgui/gradient-u")
+local gradient_d = Material("vgui/gradient-d")
+local gradient_r = Material("vgui/gradient-r")
+local gradient_l = Material("vgui/gradient-l")
+
+local achievementTheme = {
+    background = Color(5, 5, 8, 255),
+    backgroundSoft = Color(15, 10, 18, 248),
+
+    white = Color(255, 245, 252, 255),
+    whiteSoft = Color(200, 185, 198, 235),
+
+    pink = Color(255, 75, 180, 255),
+    pinkSoft = Color(185, 45, 135, 180),
+    pinkDark = Color(65, 12, 45, 240),
+
+    card = Color(18, 14, 21, 245),
+    cardHover = Color(42, 18, 36, 248),
+    cardSelected = Color(62, 22, 50, 250),
+
+    border = Color(120, 40, 100, 220),
+    borderBright = Color(255, 90, 190, 255),
+
+    description = Color(190, 170, 185, 235)
+}
+
+local function LerpColor(progress, first, second)
+    return first:Lerp(
+        second,
+        math.Clamp(progress, 0, 1)
+    )
+end
+
+local function DrawAchievementBackground(w, h)
+    surface.SetDrawColor(
+        achievementTheme.background.r,
+        achievementTheme.background.g,
+        achievementTheme.background.b,
+        achievementTheme.background.a
+    )
+
+    surface.DrawRect(0, 0, w, h)
+
+    local characters = {
+        "0", "1", "2", "3", "4",
+        "5", "6", "7", "8", "9",
+        "A", "B", "C", "D", "E",
+        "F", "G", "H", "X", "Z"
+    }
+
+    local columnWidth = ScreenScale(48)
+    local rowHeight = ScreenScale(34)
+    local speed = ScreenScale(42)
+    local time = RealTime()
+
+    surface.SetFont("ZCity_Tiny")
+
+    for column = 0, math.ceil(w / columnWidth) + 1 do
+        local columnOffset = (column * 83) % 180
+
+        local offsetY = (
+            time * speed + columnOffset
+        ) % (h + rowHeight * 3)
+
+        for row = -3, math.ceil(h / rowHeight) + 3 do
+            local characterIndex =
+                ((column * 5 + row * 3) % #characters) + 1
+
+            local character = characters[characterIndex]
+
+            local wave = math.sin(
+                time * 2
+                + column * 0.7
+                + row * 0.3
+            ) * 0.5 + 0.5
+
+            local characterColor = achievementTheme.pink:Lerp(
+                achievementTheme.white,
+                wave * 0.3
+            )
+
+            draw.SimpleText(
+                character,
+                "ZCity_Tiny",
+                column * columnWidth,
+                row * rowHeight + offsetY,
+                Color(
+                    characterColor.r,
+                    characterColor.g,
+                    characterColor.b,
+                    18 + wave * 32
+                ),
+                TEXT_ALIGN_CENTER,
+                TEXT_ALIGN_CENTER
+            )
+        end
+    end
+
+    local lineSize = ScreenScale(58)
+    local lineOffset = (
+        time * ScreenScale(20)
+    ) % lineSize
+
+    surface.SetDrawColor(
+        achievementTheme.pinkSoft.r,
+        achievementTheme.pinkSoft.g,
+        achievementTheme.pinkSoft.b,
+        35
+    )
+
+    for y = -lineSize, h + lineSize, lineSize do
+        surface.DrawRect(
+            0,
+            math.floor(y + lineOffset),
+            w,
+            ScreenScale(1)
+        )
+    end
+
+    surface.SetDrawColor(
+        achievementTheme.pink.r,
+        achievementTheme.pink.g,
+        achievementTheme.pink.b,
+        90
+    )
+
+    surface.DrawRect(0, 0, ScreenScale(2), h)
+
+    surface.DrawRect(
+        w - ScreenScale(2),
+        0,
+        ScreenScale(2),
+        h
+    )
+end
+
+local function DrawAnimatedText(
+    text,
+    font,
+    x,
+    y,
+    alignX,
+    alignY,
+    seed,
+    selected
+)
+    text = tostring(text or "")
+
+    surface.SetFont(font)
+
+    local totalWidth = surface.GetTextSize(text)
+    local startX = x
+
+    if alignX == TEXT_ALIGN_CENTER then
+        startX = x - totalWidth / 2
+    elseif alignX == TEXT_ALIGN_RIGHT then
+        startX = x - totalWidth
+    end
+
+    local cursorX = startX
+    local time = RealTime()
+
+    for index = 1, #text do
+        local character = text:sub(index, index)
+        local characterWidth = surface.GetTextSize(character)
+
+        local wave = math.sin(
+            time * 2.2
+            + seed
+            + index * 0.42
+        ) * 0.5 + 0.5
+
+        wave = wave * wave * (3 - 2 * wave)
+
+        if selected then
+            wave = math.Clamp(wave + 0.18, 0, 1)
+        end
+
+        local textColor = LerpColor(
+            wave,
+            achievementTheme.pink,
+            achievementTheme.white
+        )
+
+        local characterY = y
+
+        if selected then
+            characterY = y - math.sin(
+                time * 3
+                + seed
+                + index * 0.3
+            ) * ScreenScale(0.3)
+        end
+
+        draw.SimpleText(
+            character,
+            font,
+            cursorX,
+            characterY,
+            textColor,
+            TEXT_ALIGN_LEFT,
+            alignY
+        )
+
+        cursorX = cursorX + characterWidth
+    end
+end
+
+local function PaintAchievementCard(
+    self,
+    w,
+    h,
+    achievement,
+    localAchievements
+)
+    local selected = curent_panel_ach == achievement
+    local target = self:IsHovered() and 1 or 0
+
+    if selected then
+        target = 1
+    end
+
+    self.HoverLerp = Lerp(
+        FrameTime() * 8,
+        self.HoverLerp or 0,
+        target
+    )
+
+    local progress = self.HoverLerp
+
+    local cardColor
+
+    if selected then
+        cardColor = achievementTheme.card:Lerp(
+            achievementTheme.cardSelected,
+            progress
+        )
+    else
+        cardColor = achievementTheme.card:Lerp(
+            achievementTheme.cardHover,
+            progress
+        )
+    end
+
+    surface.SetDrawColor(
+        cardColor.r,
+        cardColor.g,
+        cardColor.b,
+        cardColor.a
+    )
+
+    surface.DrawRect(0, 0, w, h)
+
+    local borderColor = achievementTheme.border:Lerp(
+        achievementTheme.borderBright,
+        progress
+    )
+
+    surface.SetDrawColor(
+        borderColor.r,
+        borderColor.g,
+        borderColor.b,
+        borderColor.a
+    )
+
+    surface.DrawOutlinedRect(0, 0, w, h, 1)
+
+    surface.SetDrawColor(
+        achievementTheme.pink.r,
+        achievementTheme.pink.g,
+        achievementTheme.pink.b,
+        70 + progress * 130
+    )
+
+    surface.DrawRect(
+        0,
+        h - ScreenScale(2),
+        w,
+        ScreenScale(2)
+    )
+
+    local value =
+        localAchievements[achievement.key]
+        and localAchievements[achievement.key].value
+        or achievement.start_value
+
+    local title = achievement.name or ""
+
+    if achievement.showpercent then
+        title = title
+            .. " | "
+            .. math.Round(
+                value / achievement.needed_value * 100,
+                1
+            )
+            .. "%"
+    end
+
+    DrawAnimatedText(
+        title,
+        "HomigradFont",
+        ScreenScale(3),
+        h / 2,
+        TEXT_ALIGN_LEFT,
+        TEXT_ALIGN_CENTER,
+        self.AnimationSeed or 1,
+        selected
+    )
+
+    if selected and achievement.description then
+        DrawAnimatedText(
+            achievement.description,
+            "ZCity_Tiny",
+            ScreenScale(3),
+            h - ScreenScale(3),
+            TEXT_ALIGN_LEFT,
+            TEXT_ALIGN_BOTTOM,
+            (self.AnimationSeed or 1) + 10,
+            true
+        )
+    end
+
+    local shineWidth = ScreenScale(28)
+
+    local shineX = (
+        RealTime() * ScreenScale(75)
+        + (self.ShineOffset or 0)
+    ) % (w + shineWidth) - shineWidth
+
+    surface.SetDrawColor(
+        255,
+        220,
+        240,
+        12 + progress * 20
+    )
+
+    surface.DrawRect(
+        shineX,
+        0,
+        shineWidth,
+        h
+    )
+end
+
+local function PaintButton(self, w, h)
+    local progress = self:IsHovered() and 1 or 0
+
+    local color = achievementTheme.card:Lerp(
+        achievementTheme.cardHover,
+        progress
+    )
+
+    surface.SetDrawColor(
+        color.r,
+        color.g,
+        color.b,
+        color.a
+    )
+
+    surface.DrawRect(0, 0, w, h)
+
+    surface.SetDrawColor(
+        achievementTheme.pink.r,
+        achievementTheme.pink.g,
+        achievementTheme.pink.b,
+        80 + progress * 100
+    )
+
+    surface.DrawRect(
+        0,
+        h - ScreenScale(2),
+        w,
+        ScreenScale(2)
+    )
 end
 
 local function createButton(frame, ach, text, func)
-    local button = vgui.Create("DButton", frame)
+    local button = vgui.Create(
+        "DButton",
+        frame
+    )
 
-    ach.img = isstring(ach.img) and Material(ach.img) or ach.img
-    
-    local localach = hg.achievements.GetLocalAchievements()
-    local desc = markup.Parse("<font=HomigradFontMedium>"..ach.description.."<font>", 500 )
-    
-    local x,y = frame:LocalToScreen(button:GetPos())
-    function button:Paint(w,h)
-		PaintButton(self,w,h)
-        local view = render.GetViewSetup(true)
-        local pos,ang = view.origin,view.angles
-        ang:RotateAroundAxis( ang:Up(), -90 )
-	    ang:RotateAroundAxis( ang:Forward(), 90 )
-        
-        self.lerpcolor = Lerp(FrameTime() * 10,self.lerpcolor or 0,self:IsHovered() and 255 or 0)
-       
-        local val = localach[ach.key] and localach[ach.key].value or ach.start_value
-        local amt = ScreenScale(1)
+    ach.img = isstring(ach.img)
+        and Material(ach.img)
+        or ach.img
 
-        surface.SetFont("HomigradFont") 
-        local txt = ach.name..(ach.showpercent and " | " or "")..(ach.showpercent and (val / ach.needed_value * 100).."%" or "")
-        local wt,ht = surface.GetTextSize(txt)
-        surface.SetTextColor(255,255,255)
-        surface.SetTextPos(w / 2 - (wt / 2), (ht / 2) * (1-(self.lerpcolor / 255)*5))
-        surface.DrawText(txt)
+    local localach =
+        hg.achievements.GetLocalAchievements()
+        or {}
 
-        desc:Draw(w / 2,(h + desc:GetHeight()) - ((h/2) + desc:GetHeight()) * (self.lerpcolor / 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    local desc = markup.Parse(
+        "<font=HomigradFontMedium>"
+        .. ach.description
+        .. "<font>",
+        500
+    )
 
-        surface.SetDrawColor(255,255,255,10)
-        draw.NoTexture()
-        surface.DrawTexturedRectRotated(w - self.lerpcolor / 255 * 100 + 50,0,10,400,-30)
-        surface.DrawTexturedRectRotated(w - self.lerpcolor / 255 * 100 + 80,0,10,400,-30)
-    end
+    function button:Paint(w, h)
+        PaintButton(self, w, h)
 
-    button:SetText("")
-    button:SetSize(0,ScreenScale(22))
-    button:Dock(TOP)
-    button:DockMargin(0,0,0,ScreenScale(2.5))
-    button.DoClick = function(self) func(self) end
-    return button
-end
+        local value =
+            localach[ach.key]
+            and localach[ach.key].value
+            or ach.start_value
 
-local function createButton_2(frame, ach, text, func, y)
-    local button = vgui.Create("DButton", frame)
+        local title = ach.name
 
-    ach.img = isstring(ach.img) and Material(ach.img) or ach.img
-    
-    local localach = hg.achievements.GetLocalAchievements()
-    local desc = markup.Parse("<font=HomigradFontMedium>"..ach.description.."<font>", 500 )
-    
-    function button:Paint(w,h)
-        PaintButton(self,w,h)
-        local view = render.GetViewSetup(true)
-        local pos,ang = view.origin,view.angles
-        ang:RotateAroundAxis( ang:Up(), -90 )
-        ang:RotateAroundAxis( ang:Forward(), 90 )
-                
-        local val = localach[ach.key] and localach[ach.key].value or ach.start_value
-        local amt = ScreenScale(1)
-
-        surface.SetFont("HomigradFont") 
-        
-        self.HoverLerp = LerpFT(0.2, self.HoverLerp or 0, curent_panel_ach == ach and 1 or 0)
-        
-        local base = (curent_panel_ach == ach and string.upper(ach.name) or ach.name)..(ach.showpercent and " | " or "")..(ach.showpercent and (val / ach.needed_value * 100).."%" or "")
-        
-        local result = ""
-        for i = 1, #base do
-            result = result .. (i <= math.ceil(#base * self.HoverLerp) and string.upper(base:sub(i,i)) or base:sub(i,i))
+        if ach.showpercent then
+            title = title
+                .. " | "
+                .. math.Round(
+                    value / ach.needed_value * 100,
+                    1
+                )
+                .. "%"
         end
-        
-        local wt,ht = surface.GetTextSize(result)
-        surface.SetTextColor(255,255,255)
-        surface.SetTextPos(3, (ht / 2))
-        surface.DrawText(result)
+
+        DrawAnimatedText(
+            title,
+            "HomigradFont",
+            w / 2,
+            h / 2,
+            TEXT_ALIGN_CENTER,
+            TEXT_ALIGN_CENTER,
+            self.AnimationSeed or 1,
+            self:IsHovered()
+        )
+
+        if self:IsHovered() then
+            desc:Draw(
+                w / 2,
+                h - ScreenScale(4),
+                TEXT_ALIGN_CENTER,
+                TEXT_ALIGN_BOTTOM
+            )
+        end
     end
 
     button:SetText("")
-    button:SetSize(frame:GetWide(),ScreenScale(22))
+    button:SetSize(
+        0,
+        ScreenScale(22)
+    )
 
-    button:SetPos(0,y)
-    button.DoClick = function(self) 
-        curent_panel_ach = ach
-        func(self)
-		for i = 1, 3 do
-			surface.PlaySound("shitty/tap_depress.wav")
-		end
+    button:Dock(TOP)
+    button:DockMargin(
+        0,
+        0,
+        0,
+        ScreenScale(2.5)
+    )
+
+    button.AnimationSeed = math.random(1, 10000)
+    button.ShineOffset = math.random(0, 1000)
+
+    button.DoClick = function(self)
+        if func then
+            func(self)
+        end
     end
+
     return button
 end
 
-local gradient_d = Material("vgui/gradient-d")
-local function PaintFrame(self,w,h)
-	BlurBackground(self)
-    surface.SetDrawColor(50, 0, 0, 155)
-    surface.SetMaterial(gradient_d)
-    surface.DrawTexturedRect( 0, 0, w, h )
+local function createButton_2(
+    frame,
+    ach,
+    text,
+    func,
+    y
+)
+    local button = vgui.Create(
+        "DButton",
+        frame
+    )
 
-	surface.SetDrawColor( 150, 0, 0, 128)
-    surface.DrawOutlinedRect( 0, 0, w, h, 2.5 )
+    ach.img = isstring(ach.img)
+        and Material(ach.img)
+        or ach.img
+
+    button:SetText("")
+
+    -- Исходное расположение сохраняется.
+    button:SetSize(
+        frame:GetWide(),
+        ScreenScale(22)
+    )
+
+    button:SetPos(0, y)
+
+    button.AnimationSeed = math.random(1, 10000)
+    button.ShineOffset = math.random(0, 1000)
+
+    button.Paint = function(self, w, h)
+        local localach =
+            hg.achievements.GetLocalAchievements()
+            or {}
+
+        PaintAchievementCard(
+            self,
+            w,
+            h,
+            ach,
+            localach
+        )
+    end
+
+    button.DoClick = function(self)
+        curent_panel_ach = ach
+
+        if func then
+            func(self)
+        end
+
+        for i = 1, 3 do
+            surface.PlaySound(
+                "shitty/tap_depress.wav"
+            )
+        end
+    end
+
+    return button
+end
+
+local function PaintFrame(self, w, h)
+    BlurBackground(self)
+
+    surface.SetDrawColor(
+        achievementTheme.backgroundSoft.r,
+        achievementTheme.backgroundSoft.g,
+        achievementTheme.backgroundSoft.b,
+        achievementTheme.backgroundSoft.a
+    )
+
+    surface.DrawRect(0, 0, w, h)
+
+    surface.SetDrawColor(
+        achievementTheme.borderBright.r,
+        achievementTheme.borderBright.g,
+        achievementTheme.borderBright.b,
+        150
+    )
+
+    surface.DrawOutlinedRect(
+        0,
+        0,
+        w,
+        h,
+        1
+    )
 end
 
 function hg.DrawAchievmentsMenu(ParentPanel)
     hg.achievements.LoadAchievements()
+
+    if not IsValid(ParentPanel) then return end
 
     if IsValid(hg.achievements.MenuPanel) then
         hg.achievements.MenuPanel:Remove()
         hg.achievements.MenuPanel = nil
     end
 
-    local frame
-    if ParentPanel then
-        ParentPanel:SetAlpha(0)
-        ParentPanel.Paint = function(self,w,h)
-            surface.SetDrawColor(28,28,28,255)
-            surface.DrawRect(0, 0, w, h)
+    curent_panel_ach = nil
 
-            surface.SetDrawColor(107, 107, 107,20)
-            for i = 1, (ybars + 1) do
-                surface.DrawRect((sw / ybars) * i - (CurTime() * 30 % (sw / ybars)), 0, ScreenScale(1), sh)
-            end
+    ParentPanel:SetAlpha(0)
 
-            for i = 1, (xbars + 1) do
-                surface.DrawRect(0, (sh / xbars) * (i - 1) + (CurTime() * 30 % (sh / xbars)), sw, ScreenScale(1))
-            end
-
-            local border_size = ScreenScale(2)
-
-            surface.SetDrawColor(0, 0, 0)
-            surface.SetMaterial(gradient_l)
-            surface.DrawTexturedRect(0, 0, border_size, sh)
-        end
-
+    -- Меняется только фон содержимого вкладки.
+    ParentPanel.Paint = function(self, w, h)
+        DrawAchievementBackground(w, h)
     end
+
     hg.DrawBlur(ParentPanel, 5)
-    ParentPanel:AlphaTo(255,0.15,0)
-    local frame = vgui.Create('DPanel', ParentPanel)
-    frame:SetSize(ParentPanel:GetWide()/2.5, ScreenScale(22)*8.25+ScreenScale(2.5))
-    frame:SetPos(5, ParentPanel:GetTall()/2 - frame:GetTall()/2)
-    frame.Paint = function()
+    ParentPanel:AlphaTo(255, 0.15, 0)
+
+    local frame = vgui.Create(
+        "DPanel",
+        ParentPanel
+    )
+
+    -- Исходное расположение и размеры сохранены.
+    frame:SetSize(
+        ParentPanel:GetWide() / 2.5,
+        ScreenScale(22) * 8.25
+            + ScreenScale(2.5)
+    )
+
+    frame:SetPos(
+        5,
+        ParentPanel:GetTall() / 2
+            - frame:GetTall() / 2
+    )
+
+    frame.Paint = function(self, w, h)
+        PaintFrame(self, w, h)
     end
 
     hg.achievements.MenuPanel = frame
 
-    local scroll = vgui.Create("DScrollPanel",frame)
-    scroll:SetSize(frame:GetWide(),frame:GetTall())
-    scroll:SetPos(0,0)
+    local scroll = vgui.Create(
+        "DScrollPanel",
+        frame
+    )
+
+    scroll:SetSize(
+        frame:GetWide(),
+        frame:GetTall()
+    )
+
+    scroll:SetPos(0, 0)
 
     frame.scroll = scroll
 
     local sbar = scroll:GetVBar()
+
     sbar:SetWide(0)
     sbar:SetHideButtons(true)
+
     function sbar:Paint(w, h)
-        draw.RoundedBox(0, 0, 0, w, h, Color(0, 0, 0, 100))
+        surface.SetDrawColor(
+            achievementTheme.background.r,
+            achievementTheme.background.g,
+            achievementTheme.background.b,
+            170
+        )
+
+        surface.DrawRect(0, 0, w, h)
     end
+
     function sbar.btnGrip:Paint(w, h)
-        self.lerpcolor = Lerp(FrameTime() * 10, self.lerpcolor or 0.2,(self:IsHovered() and 0.8 or 0.6))
-        draw.RoundedBox(0, 0, 0, w, h, Color(100 * self.lerpcolor, 10, 10))
+        local progress = self:IsHovered() and 1 or 0
+
+        local color = achievementTheme.border:Lerp(
+            achievementTheme.borderBright,
+            progress
+        )
+
+        draw.RoundedBox(
+            0,
+            0,
+            0,
+            w,
+            h,
+            color
+        )
     end
 
     function frame:UpdateValues()
-        local scroll = self.scroll
-        scroll:Clear()
-        
+        local achievementScroll = self.scroll
+
+        achievementScroll:Clear()
+
         local y = 0
-        for i,ach in pairs(hg.achievements.achievements_data.created_achevements) do
-            local bbb = createButton_2(scroll, ach, ach.name, function() end,y)
-            y = bbb:GetTall() + y + 3
-            scroll:AddItem(bbb)
+
+        -- Используем pairs, как в оригинале.
+        for _, ach in pairs(
+            hg.achievements.achievements_data.created_achevements
+        ) do
+            local button = createButton_2(
+                achievementScroll,
+                ach,
+                ach.name,
+                function()
+                end,
+                y
+            )
+
+            y = button:GetTall() + y + 3
+
+            -- Сохраняем исходную логику добавления элементов.
+            achievementScroll:AddItem(button)
+
             curent_panel_ach = ach
         end
-
     end
+
     local y = 0
-    for i,ach in pairs(hg.achievements.achievements_data.created_achevements) do
-        local bbb = createButton_2(scroll, ach, ach.name, function() end,y)
-        y = bbb:GetTall() + y + 3
-        scroll:AddItem(bbb)
+
+    -- Исходное расположение списка сохраняется.
+    for _, ach in pairs(
+        hg.achievements.achievements_data.created_achevements
+    ) do
+        local button = createButton_2(
+            scroll,
+            ach,
+            ach.name,
+            function()
+            end,
+            y
+        )
+
+        y = button:GetTall() + y + 3
+
+        scroll:AddItem(button)
+
         curent_panel_ach = ach
     end
-    local frame2 = vgui.Create('DPanel', ParentPanel)
-    frame2:SetSize(ParentPanel:GetWide()/2, ScreenScale(22)*8.25+ScreenScale(2.5))
+
+    local frame2 = vgui.Create(
+        "DPanel",
+        ParentPanel
+    )
+
+    -- Исходные размеры и позиция сохраняются.
+    frame2:SetSize(
+        ParentPanel:GetWide() / 2,
+        ScreenScale(22) * 8.25
+            + ScreenScale(2.5)
+    )
+
     frame2:Center()
-    frame2:SetPos(frame:GetX()+frame:GetWide(),frame:GetY())
-    frame2.Paint = function(self,w,h)
-        surface.SetDrawColor(92,0,0,108)
-        surface.SetMaterial(gradient_d)
-        surface.DrawTexturedRect(0,0,w,h)
-        surface.SetDrawColor(40,36,36,255)
-        surface.DrawRect(0,h-h/6,w,h/6)
-        surface.SetDrawColor(22,21,21)
-        surface.DrawRect(0,h-3,w,3)
-        
-        if curent_panel_ach then
-            self.HoverLerp = LerpFT(0.2,self.HoverLerp or 0,1)
-            
-            surface.SetDrawColor(255,255,255,255)
-            surface.SetMaterial(curent_panel_ach.img)
-            surface.DrawTexturedRect(w/2-w/10,h/2-w/5,w/5,w/5)
-            
-            surface.SetFont("ZCity_Small")
-            local name = curent_panel_ach.name
-            local res = ""
-            for i=1,#name do
-                res=res..(i<=math.ceil(#name*self.HoverLerp)and name:sub(i,i)or "")
-            end
-            local wt,ht=surface.GetTextSize(res)
-            surface.SetTextColor(255,255,255)
-            surface.SetTextPos(w/2-wt/2,h-h/6)
-            surface.DrawText(res)
-            
-            surface.SetFont("ZCity_Tiny")
-            local desc = curent_panel_ach.description
-            local res2 = ""
-            for i=1,#desc do
-                res2=res2..(i<=math.ceil(#desc*self.HoverLerp)and desc:sub(i,i)or "")
-            end
-            local lines=string.Explode("\n",res2:gsub("\\n","\n"))
-            surface.SetTextColor(170,170,170)
-            local lnh=ht/2
-            for i,line in ipairs(lines) do
-                local wt,ht=surface.GetTextSize(line)
-                surface.SetTextPos(w/2-wt/2,h-h/12+(i-1)*lnh)
-                surface.DrawText(line)
-            end
+
+    frame2:SetPos(
+        frame:GetX() + frame:GetWide(),
+        frame:GetY()
+    )
+
+    frame2.Paint = function(self, w, h)
+        surface.SetDrawColor(
+            achievementTheme.backgroundSoft.r,
+            achievementTheme.backgroundSoft.g,
+            achievementTheme.backgroundSoft.b,
+            achievementTheme.backgroundSoft.a
+        )
+
+        surface.DrawRect(0, 0, w, h)
+
+        surface.SetDrawColor(
+            achievementTheme.pinkSoft.r,
+            achievementTheme.pinkSoft.g,
+            achievementTheme.pinkSoft.b,
+            45
+        )
+
+        surface.DrawRect(
+            0,
+            h - h / 6,
+            w,
+            h / 6
+        )
+
+        surface.SetDrawColor(
+            achievementTheme.pink.r,
+            achievementTheme.pink.g,
+            achievementTheme.pink.b,
+            180
+        )
+
+        surface.DrawRect(
+            0,
+            h - ScreenScale(2),
+            w,
+            ScreenScale(2)
+        )
+
+        if not curent_panel_ach then
+            draw.SimpleText(
+                "Выберите достижение",
+                "ZCity_setiings_category",
+                w / 2,
+                h / 2,
+                achievementTheme.whiteSoft,
+                TEXT_ALIGN_CENTER,
+                TEXT_ALIGN_CENTER
+            )
+
+            return
+        end
+
+        self.HoverLerp = Lerp(
+            FrameTime() * 5,
+            self.HoverLerp or 0,
+            1
+        )
+
+        local imageSize = math.min(
+            w * 0.2,
+            h * 0.2
+        )
+
+        local imageX = w / 2 - imageSize / 2
+        local imageY = h / 2 - imageSize
+
+        local pulse = math.sin(
+            RealTime() * 2.5
+        ) * 0.5 + 0.5
+
+        surface.SetDrawColor(
+            achievementTheme.pink.r,
+            achievementTheme.pink.g,
+            achievementTheme.pink.b,
+            35 + pulse * 35
+        )
+
+        surface.DrawOutlinedRect(
+            imageX - ScreenScale(5),
+            imageY - ScreenScale(5),
+            imageSize + ScreenScale(10),
+            imageSize + ScreenScale(10),
+            ScreenScale(2)
+        )
+
+        if curent_panel_ach.img then
+            surface.SetDrawColor(
+                255,
+                255,
+                255,
+                255
+            )
+
+            surface.SetMaterial(
+                curent_panel_ach.img
+            )
+
+            surface.DrawTexturedRect(
+                imageX,
+                imageY,
+                imageSize,
+                imageSize
+            )
+        end
+
+        DrawAnimatedText(
+            curent_panel_ach.name or "",
+            "ZCity_Small",
+            w / 2,
+            h - h / 6,
+            TEXT_ALIGN_CENTER,
+            TEXT_ALIGN_CENTER,
+            100,
+            true
+        )
+
+        local description =
+            tostring(
+                curent_panel_ach.description or ""
+            )
+
+        description = description:gsub(
+            "\\n",
+            "\n"
+        )
+
+        local lines = string.Explode(
+            "\n",
+            description
+        )
+
+        local lineHeight = ScreenScale(8)
+        local descriptionY = h - h / 12
+
+        for lineIndex, line in ipairs(lines) do
+            DrawAnimatedText(
+                line,
+                "ZCity_Tiny",
+                w / 2,
+                descriptionY
+                    + (lineIndex - 1) * lineHeight,
+                TEXT_ALIGN_CENTER,
+                TEXT_ALIGN_CENTER,
+                150 + lineIndex,
+                true
+            )
         end
     end
 end
 
 local time_wait = 0
+
 function hg.achievements.LoadAchievements()
     if time_wait > CurTime() then return end
+
     time_wait = CurTime() + 2
 
     net.Start("req_ach")
@@ -263,57 +898,208 @@ function hg.achievements.LoadAchievements()
 end
 
 function hg.achievements.GetLocalAchievements()
-    return hg.achievements.achievements_data.player_achievements[tostring(LocalPlayer():SteamID())]
+    local player = LocalPlayer()
+
+    if not IsValid(player) then
+        return {}
+    end
+
+    return hg.achievements.achievements_data
+        .player_achievements[
+            tostring(player:SteamID())
+        ]
+        or {}
 end
 
-net.Receive("req_ach",function()
-    hg.achievements.achievements_data.created_achevements = net.ReadTable()
-    hg.achievements.achievements_data.player_achievements[tostring(LocalPlayer():SteamID())] = net.ReadTable()
-    
-    if IsValid(hg.achievements.MenuPanel) then
+net.Receive("req_ach", function()
+    hg.achievements.achievements_data.created_achevements =
+        net.ReadTable()
+
+    local player = LocalPlayer()
+
+    if IsValid(player) then
+        hg.achievements.achievements_data
+            .player_achievements[
+                tostring(player:SteamID())
+            ] = net.ReadTable()
+    else
+        net.ReadTable()
+    end
+
+    if IsValid(hg.achievements.MenuPanel)
+    and hg.achievements.MenuPanel.UpdateValues then
         hg.achievements.MenuPanel:UpdateValues()
     end
 end)
 
-hg.achievements.NewAchievements = hg.achievements.NewAchievements or {}
-local AchTable = hg.achievements.NewAchievements 
-net.Receive("hg_NewAchievement",function()
-    local Ach = {time = CurTime() + 7.5,name = net.ReadString(),img = net.ReadString()}
-    table.insert(AchTable,1,Ach)
-	surface.PlaySound("homigrad/vgui/achievement_earned.wav")
+hg.achievements.NewAchievements =
+    hg.achievements.NewAchievements or {}
+
+local AchTable =
+    hg.achievements.NewAchievements
+
+net.Receive("hg_NewAchievement", function()
+    local achievement = {
+        time = CurTime() + 7.5,
+        name = net.ReadString(),
+        img = net.ReadString()
+    }
+
+    table.insert(
+        AchTable,
+        1,
+        achievement
+    )
+
+    surface.PlaySound(
+        "homigrad/vgui/achievement_earned.wav"
+    )
 end)
 
-local ach_clr1 , ach_clr2 = Color(200,25,25), Color(100,25,25)
-hook.Add("HUDPaint","hg_NewAchievement", function()
-    local frametime = FrameTime() * 10
-    for i = 1, #AchTable do
-        local ach = AchTable[i]
-        if not ach then continue end
-        local txt = "Achievement! "..ach.name
-        ach.img = isstring(ach.img) and Material(ach.img) or ach.img
-        local wt, _ = surface.GetTextSize(txt)
+local notificationTheme = {
+    background = Color(10, 8, 13, 245),
+    backgroundHover = Color(55, 18, 45, 250),
+    pink = Color(255, 75, 180, 255),
+    white = Color(255, 245, 252, 255),
+    border = Color(180, 45, 130, 255)
+}
 
-        ach.Lerp = Lerp( frametime, ach.Lerp or 0, math.min( ach.time - CurTime(), 1 ) * i )
-        WSize, HSize = (ScrW() * 0.1) + (wt), ScrH() * 0.05
-        local HPos = ScrH() - ( HSize * ach.Lerp )
-        draw.RoundedBox( 0, 2, HPos + 2, WSize - 4, HSize - 4, ach_clr2 )
-		
-		surface.SetDrawColor(155, 0, 0, 255)
-		surface.SetMaterial(gradient_u)
-		surface.DrawTexturedRect( 0, HPos, WSize, HSize )
-	
-		surface.SetDrawColor( 150, 0, 0, 255)
-		surface.DrawOutlinedRect( 0, HPos, WSize, HSize, 2.5 )
+hook.Add(
+    "HUDPaint",
+    "hg_NewAchievement",
+    function()
+        local frameTime = FrameTime() * 8
+        local now = CurTime()
 
-        surface.SetFont("HomigradFontMedium")
-        surface.SetTextColor(255,255,255)
-        surface.SetTextPos(HSize*1.25,(HPos + ( HSize/2 ) - ( HSize/4 )) )
-        surface.DrawText(txt)
-        surface.SetDrawColor(255,255,255)
-        surface.SetMaterial(ach.img)
-        surface.DrawTexturedRect(2,HPos+2,HSize-4,HSize-4)
-        if ach.time < CurTime() then 
-            table.remove(AchTable,i)
+        for index = #AchTable, 1, -1 do
+            local achievement = AchTable[index]
+
+            if not achievement then
+                continue
+            end
+
+            achievement.img =
+                isstring(achievement.img)
+                and Material(achievement.img)
+                or achievement.img
+
+            local title =
+                "Achievement! "
+                .. tostring(achievement.name or "")
+
+            surface.SetFont("HomigradFontMedium")
+
+            local textWidth =
+                surface.GetTextSize(title)
+
+            local width =
+                ScrW() * 0.1
+                + textWidth
+                + ScreenScale(20)
+
+            local height = ScreenScale(28)
+
+            local target = math.Clamp(
+                achievement.time - now,
+                0,
+                1
+            )
+
+            achievement.Lerp = Lerp(
+                frameTime,
+                achievement.Lerp or 0,
+                target
+            )
+
+            local y =
+                ScrH()
+                - height * achievement.Lerp
+
+            local wave = math.sin(
+                RealTime() * 3 + index
+            ) * 0.5 + 0.5
+
+            local background =
+                notificationTheme.background:Lerp(
+                    notificationTheme.backgroundHover,
+                    wave
+                )
+
+            draw.RoundedBox(
+                0,
+                2,
+                y + 2,
+                width - 4,
+                height - 4,
+                background
+            )
+
+            surface.SetDrawColor(
+                notificationTheme.border.r,
+                notificationTheme.border.g,
+                notificationTheme.border.b,
+                220
+            )
+
+            surface.DrawOutlinedRect(
+                0,
+                y,
+                width,
+                height,
+                2
+            )
+
+            surface.SetDrawColor(
+                notificationTheme.pink.r,
+                notificationTheme.pink.g,
+                notificationTheme.pink.b,
+                90
+            )
+
+            surface.DrawRect(
+                0,
+                y,
+                width,
+                ScreenScale(2)
+            )
+
+            DrawAnimatedText(
+                title,
+                "HomigradFontMedium",
+                ScreenScale(12),
+                y + height / 2,
+                TEXT_ALIGN_LEFT,
+                TEXT_ALIGN_CENTER,
+                index * 10,
+                true
+            )
+
+            if achievement.img then
+                surface.SetDrawColor(
+                    255,
+                    255,
+                    255,
+                    255
+                )
+
+                surface.SetMaterial(
+                    achievement.img
+                )
+
+                surface.DrawTexturedRect(
+                    2,
+                    y + 2,
+                    height - 4,
+                    height - 4
+                )
+            end
+
+            if achievement.time < now then
+                table.remove(
+                    AchTable,
+                    index
+                )
+            end
         end
     end
-end)
+)

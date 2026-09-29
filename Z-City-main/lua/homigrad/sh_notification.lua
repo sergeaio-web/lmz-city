@@ -1,20 +1,20 @@
 local hg_furcity = ConVarExists("hg_furcity") and GetConVar("hg_furcity") or CreateConVar("hg_furcity", 0, bit.bor(FCVAR_REPLICATED, FCVAR_ARCHIVE, FCVAR_LUA_SERVER), "Toggle phrase furryfier :3", 0, 1)
 
 hg.fur = {
-	" rawr~",
-	" mrrrph~~",
-	" meow :3",
+	" равв~!",
+	" мррр~~",
+	" мяу :3",
 	" uwu",
 	" >w<",
 	" OwO",
 	" ^w^",
-	" *blushes*",
+	" *Краснею*",
 	" -w-",
 	" ~w~",
-	" mrrawr~~",
-	" mrrp~",
-	" mrreow~",
-	" mwah~",
+	" мравв~~",
+	" мррв~",
+	" мррмяу~~",
+	" мвм~~",
 	"~",
 	"~~"
 }

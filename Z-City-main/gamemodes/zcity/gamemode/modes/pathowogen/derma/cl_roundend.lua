@@ -110,10 +110,10 @@ local escapee = Color(237, 192, 80)
 local red = Color(255, 0, 0)
 
 local winText = {
-	[0] = "Nobody won!",
-	[1] = "Pathowogen wins!",
-	[2] = "Survivors win!",
-	[3] = "Contractor wins!"
+	[0] = "Никто не выиграл!",
+	[1] = "Патогенны выиграли!",
+	[2] = "Люди выиграли!",
+	[3] = "Подрядчяки победили!"
 }
 
 local winColor = {

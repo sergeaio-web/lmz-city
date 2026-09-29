@@ -13,10 +13,10 @@ function PANEL:Init()
 	self.dialogue = self:Add("ZB_Dialogue")
 	self.dialogue:SetPos(ScrW() / 2 - self.dialogue:GetWide() / 2, ScrH() / 2 - self.dialogue:GetTall() / 2)
 
-	self.dialogue:SetText("There's an unknown pathowogen virus ravaging your current area. Your location is now under immediate quarantine until further notice, we'll try to figure out the means of your extraction in the meantime.", 2)
+	self.dialogue:SetText("В районе вашего нынешнего местонахождения свирепствует неизвестный патогенный вирус. Объявлен режим немедленного карантина.", 2)
 	timer.Simple(15, function()
 		if !IsValid(self) then return end
-		self.dialogue:SetText("Stay safe. Over.")
+		self.dialogue:SetText("Берегите себя.")
 
 		self:SetKeyboardInputEnabled(false)
 

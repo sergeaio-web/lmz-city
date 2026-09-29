@@ -14,7 +14,6 @@ end
 local function PaintMarkupOverride(text, font, x, y, color, alignX, alignY, alpha)
 	alpha = alpha or 255
 
-	-- background for easier reading
 	surface.SetTextPos(x + 1, y + 1)
 	surface.SetTextColor(0, 0, 0, alpha)
 	surface.SetFont(font)
@@ -26,6 +25,42 @@ local function PaintMarkupOverride(text, font, x, y, color, alignX, alignY, alph
 	surface.DrawText(text)
 end
 
+local function clamp(v, min, max)
+	if v < min then return min end
+	if v > max then return max end
+	return v
+end
+
+local function easeOutBack(t)
+	local c1 = 1.70158
+	local c3 = c1 + 1
+	return 1 + c3 * (t - 1)^3 + c1 * (t - 1)^2
+end
+
+local function randomSide()
+	local sides = {
+		{ x = -180, y = math.random(-120, 120) },
+		{ x = 180,  y = math.random(-120, 120) },
+		{ x = math.random(-120, 120), y = -180 },
+		{ x = math.random(-120, 120), y = 180 }
+	}
+	return sides[math.random(#sides)]
+end
+
+local function utf8LastChar(str)
+	if not str or str == "" then return "" end
+	local len = utf8.len(str)
+	if len <= 0 then return "" end
+	return utf8.sub(str, len, len)
+end
+
+local function utf8RemoveLastChar(str)
+	if not str or str == "" then return "" end
+	local len = utf8.len(str)
+	if len <= 0 then return "" end
+	return utf8.sub(str, 1, len - 1)
+end
+
 local PANEL = {}
 
 function PANEL:Init()
@@ -34,8 +69,12 @@ function PANEL:Init()
 	self.fadeDelay = 15
 	self.fadeDuration = 5
 	self.yAnimDuration = 1
-
 	self.yAnim = 5
+
+	-- лёгкая тряска после появления сообщения
+	self.messageShakeStart = 0
+	self.messageShakeDuration = 0.35
+	self.messageShakePower = 1.2
 end
 
 function PANEL:SetMarkup(text)
@@ -46,8 +85,10 @@ function PANEL:SetMarkup(text)
 
 	self:SetTall(self.markup:GetHeight())
 
+	self.messageShakeStart = CurTime()
+
 	timer.Simple(self.fadeDelay, function()
-		if (!IsValid(self)) then
+		if not IsValid(self) then
 			return
 		end
 
@@ -70,6 +111,10 @@ function PANEL:SetMarkup(text)
 end
 
 function PANEL:PerformLayout(width, height)
+	if not self.text or self.text == "" then
+		return
+	end
+
 	self.markup = hg.markup.Parse(self.text, width)
 	self.markup.onDrawText = PaintMarkupOverride
 
@@ -77,20 +122,42 @@ function PANEL:PerformLayout(width, height)
 end
 
 function PANEL:Paint(width, height)
-	local newAlpha
+	if not self.markup then
+		return
+	end
 
-	if (hg.chat:GetActive()) then
+	if not IsValid(hg.chat) then
+		return
+	end
+
+	local newAlpha
+	if hg.chat:GetActive() then
 		newAlpha = math.max(hg.chat.alpha, self.alpha)
 	else
 		newAlpha = self.alpha - (255 - hg.chat.realAlpha)
 	end
 
+	newAlpha = math.Clamp(newAlpha, 0, 255)
+
+	-- слабая тряска в первые 0.35 сек
+	local shakeX = 0
+	local shakeY = 0
+
+	local shakeProgress = (CurTime() - self.messageShakeStart) / self.messageShakeDuration
+
+	if shakeProgress >= 0 and shakeProgress < 1 then
+		local strength = (1 - shakeProgress) * self.messageShakePower
+		shakeX = math.sin(CurTime() * 35) * strength
+		shakeY = math.cos(CurTime() * 31) * strength
+	end
+
 	DisableClipping(true)
 		local chatboxX, chatboxY = hg.chat:GetPos()
-		local wide, tall = hg.chat:GetSize()
+		local chatboxWide, chatboxTall = hg.chat:GetSize()
+		render.SetScissorRect(chatboxX, chatboxY, chatboxX + chatboxWide, chatboxY + chatboxTall, true)
 
-		render.SetScissorRect(chatboxX, chatboxY, chatboxX + wide, chatboxY + tall, true)
-			self.markup:draw(0, self.yAnim, nil, nil, newAlpha)
+		self.markup:draw(shakeX, self.yAnim + shakeY, nil, nil, newAlpha)
+
 		render.SetScissorRect(0, 0, 0, 0, false)
 	DisableClipping(false)
 end
@@ -108,13 +175,12 @@ function PANEL:Init()
 
 	self.History = hg.chat.messageHistory
 	self.droppedCharacters = {}
+	self.animatedCharacters = {}
 
 	self.prevText = ""
 
 	self:SetTextColor(color_white)
-
 	self:SetPaintBackground(false)
-
 	self.m_bLoseFocusOnClickAway = false
 end
 
@@ -122,7 +188,6 @@ function PANEL:AllowInput(newCharacter)
 	local text = self:GetText()
 	local maxLen = maxLength:GetInt()
 
-	-- we can't check for the proper length using utf-8 since AllowInput is called for single bytes instead of full characters
 	if (string.len(text .. newCharacter) > maxLen) then
 		surface.PlaySound("common/talk.wav")
 		return true
@@ -135,7 +200,6 @@ function PANEL:Think()
 
 	if (text:utf8len() > maxLen) then
 		local newText = text:utf8sub(0, maxLen)
-
 		self:SetText(newText)
 		self:SetCaretPos(newText:utf8len())
 	end
@@ -147,18 +211,39 @@ function PANEL:Paint(w, h)
 	surface.SetDrawColor(43, 31, 31, 100)
 	surface.DrawRect(0, 0, w, h)
 
-	-- surface.SetDrawColor(137, 137, 137, 150)
-	-- surface.SetMaterial(gradient_l)
-	-- surface.DrawTexturedRect(0, 0, w * 0.9, h)
+	-- Анимация вводимых букв
+	for i = #self.animatedCharacters, 1, -1 do
+		local v = self.animatedCharacters[i]
+		v.elapsed = v.elapsed + FrameTime()
+
+		if v.elapsed >= v.duration then
+			table.remove(self.animatedCharacters, i)
+		else
+			local progress = v.elapsed / v.duration
+			local eased = easeOutBack(progress)
+
+			v.x = v.startX + (v.targetX - v.startX) * eased
+			v.y = v.startY + (v.targetY - v.startY) * eased
+			v.alpha = 255 * (1 - progress * 0.3)
+
+			local shakeX = math.sin(CurTime() * 25) * 5
+			local shakeY = math.cos(CurTime() * 22) * 4
+
+			DisableClipping(true)
+				surface.SetTextColor(200, 200, 255, v.alpha)
+				surface.SetTextPos(v.x + shakeX, v.y + shakeY)
+				surface.SetFont("zChatFont")
+				surface.DrawText(v.text)
+			DisableClipping(false)
+		end
+	end
 
 	for k, v in ipairs(self.droppedCharacters) do
 		local text = v.text
 
 		v.velocityY = v.velocityY + (5 * FrameTime())
 		v.y = v.y + v.velocityY
-
 		v.x = v.x + v.velocityX
-
 		v.alpha = v.alpha - FrameTime() * 750
 
 		DisableClipping(true)
@@ -175,12 +260,10 @@ function PANEL:Paint(w, h)
 
 	if ShowTextBoxInactive:GetBool() and !hg.chat:GetActive() and self.prevText != "" then
 		DisableClipping(true)
-		surface.SetAlphaMultiplier(1)
 			surface.SetTextColor(150, 150, 150, 55)
 			surface.SetTextPos(0, 0)
 			surface.SetFont("zChatFont")
 			surface.DrawText(self.prevText)
-		surface.SetAlphaMultiplier(0)
 		DisableClipping(false)
 	end
 
@@ -188,40 +271,49 @@ function PANEL:Paint(w, h)
 end
 
 function PANEL:OnValueChange(text)
-	local prevText = self.prevText
+	local prevText = self.prevText or ""
 
-	if NoDrop:GetBool() then
-		local len1, len2 = string.utf8len(prevText), string.utf8len(text)
+	local len1, len2 = utf8.len(prevText), utf8.len(text)
 
-		if len1 > len2 then
-			local droppedText = string.utf8sub(prevText, self:GetCaretPos() + 1, self:GetCaretPos() + (len1 - len2))
+	if len2 > len1 then
+		local newChar = utf8LastChar(text)
+		local leftText = utf8RemoveLastChar(text)
 
-			local droppedChars = string.Explode(utf8.charpattern, droppedText)
-			for k, v in ipairs(droppedChars) do
-				local data = {}
-				data.text = v
+		local side = randomSide()
 
-				surface.SetFont("zChatFont")
-				-- local tw1 = surface.GetTextSize(text)
-				local tw2 = surface.GetTextSize(v)
+		surface.SetFont("zChatFont")
+		local leftWidth = surface.GetTextSize(leftText or "")
+		local targetX = 5 + leftWidth
+		local targetY = 8
 
-				data.x = tw2 * (self:GetCaretPos())
+		self.animatedCharacters[#self.animatedCharacters + 1] = {
+			text = newChar,
+			startX = targetX + side.x,
+			startY = targetY + side.y,
+			targetX = targetX,
+			targetY = targetY,
+			x = targetX + side.x,
+			y = targetY + side.y,
+			elapsed = 0,
+			duration = 0.3,
+			alpha = 255
+		}
+	end
 
-				-- local panelWide = self:GetWide()
+	if len1 > len2 then
+		local removedCount = len1 - len2
+		local droppedText = utf8.sub(prevText, len2 + 1, len1)
+		local droppedChars = string.Explode(utf8.charpattern, droppedText)
 
-				-- if data.x > panelWide then
-				-- 	data.x = data.x - (data.x - panelWide)
-				-- end
-
-				data.y = 8
-
-				data.velocityX = math.Rand(-0.1, 0.1)
-				data.velocityY = -1
-
-				data.alpha = 255
-
-				table.insert(self.droppedCharacters, data)
-			end
+		for _, v in ipairs(droppedChars) do
+			local data = {}
+			data.text = v
+			data.x = 5
+			data.y = 8
+			data.velocityX = math.Rand(-0.1, 0.1)
+			data.velocityY = -1
+			data.alpha = 255
+			table.insert(self.droppedCharacters, data)
 		end
 	end
 
@@ -245,7 +337,7 @@ function PANEL:Init()
 	self.realAlpha = 255
 
 	self:SetSize(ScrW() * 0.3, ScrH() * 0.2)
-	self:SetPos(ScrW() * 0.02, ScrH() * 0.67) --six seven!!!!!!!!!!
+	self:SetPos(ScrW() * 0.02, ScrH() * 0.67)
 
 	local entryPanel = self:Add("Panel")
 	entryPanel:SetZPos(1)
@@ -254,8 +346,6 @@ function PANEL:Init()
 
 	self.entry = entryPanel:Add("zChatboxEntry")
 	self.entry:Dock(FILL)
-	-- self.entry.OnValueChange = ix.util.Bind(self, self.OnTextChanged)
-	-- self.entry.OnKeyCodeTyped = ix.util.Bind(self, self.OnKeyCodeTyped)
 	self.entry.OnEnter = CallbackBind(self, self.OnMessageSent)
 
 	self.history = self:Add("DScrollPanel")
@@ -270,7 +360,8 @@ local gray = Color(255, 255, 255, 100)
 local black = Color(0, 0, 0, 200)
 
 function PANEL:Paint(w, h)
-	surface.SetDrawColor(247, 67, 67, 100 + math.sin(CurTime()) * 30)
+	-- розовый вместо красного
+	surface.SetDrawColor(220, 100, 150, 100 + math.sin(CurTime()) * 30)
 	surface.SetMaterial(gradient_d)
 	surface.DrawTexturedRect(0, h * 0.5, w, h * 0.5)
 
@@ -287,7 +378,7 @@ function PANEL:Paint(w, h)
 		draw.SimpleText("Hold left ALT and press ENTER to whisper", "zChatFontSmall", 5, h * 1.01 + 1, black)
 		draw.SimpleText("Hold left ALT and press ENTER to whisper", "zChatFontSmall", 4, h * 1.01, gray)
 
-		if LocalPlayer().organism and LocalPlayer().organism.otrub  then
+		if LocalPlayer().organism and LocalPlayer().organism.otrub then
 			draw.SimpleText("Your messages are currently not visible to anyone.", "zChatFontSmall", ScrW() * 0.3 + 1, h * 1.01 + 1, black, TEXT_ALIGN_RIGHT)
 			draw.SimpleText("Your messages are currently not visible to anyone.", "zChatFontSmall", ScrW() * 0.3, h * 1.01, gray, TEXT_ALIGN_RIGHT)
 		end
@@ -303,9 +394,7 @@ function PANEL:SetActive(bActive, bRemovePrev)
 		self:SetAlpha(255)
 		self:MakePopup()
 		self.entry:RequestFocus()
-
 		input.SetCursorPos(self:LocalToScreen(10, self:GetTall() + 10))
-
 		hook.Run("StartChat")
 	else
 		self:SetAlpha(0)
@@ -318,7 +407,6 @@ function PANEL:SetActive(bActive, bRemovePrev)
 		end
 
 		gui.EnableScreenClicker(false)
-
 		hook.Run("FinishChat")
 	end
 
@@ -352,8 +440,7 @@ function PANEL:OnMessageSent()
 	if (text:find("%S")) then
 		local lastEntry = hg.chat.messageHistory[#hg.chat.messageHistory]
 
-		-- only add line to textentry history if it isn't the same message
-		if (lastEntry != text) then
+		if (lastEntry ~= text) then
 			if (#hg.chat.messageHistory >= 20) then
 				table.remove(hg.chat.messageHistory, 1)
 			end
@@ -386,10 +473,15 @@ function PANEL:AddLine(elements)
 		elseif (istable(v) and v.r and v.g and v.b) then
 			buffer[#buffer + 1] = string.format("<color=%d,%d,%d>", v.r, v.g, v.b)
 		elseif (type(v) == "Player") then
-			local color = team.GetColor(v:Team())
+			local color = v:GetPlayerColor():ToColor()
 
-			buffer[#buffer + 1] = string.format("<color=%d,%d,%d>%s", color.r, color.g, color.b,
-				v:GetName():gsub("<", "&lt;"):gsub(">", "&gt;"))
+			buffer[#buffer + 1] = string.format(
+				"<color=%d,%d,%d>%s",
+				color.r,
+				color.g,
+				color.b,
+				v:GetName():gsub("<", "&lt;"):gsub(">", "&gt;")
+			)
 		else
 			buffer[#buffer + 1] = tostring(v):gsub("<", "&lt;"):gsub(">", "&gt;")
 		end
@@ -409,7 +501,7 @@ function PANEL:AddLine(elements)
 	end
 
 	local bar = self.history:GetVBar()
-	local bScroll = !self:GetActive() or bar.Scroll == bar.CanvasSize -- only scroll when we're not at the bottom/inactive
+	local bScroll = !self:GetActive() or bar.Scroll == bar.CanvasSize
 
 	if bScroll then
 		bar:SetScroll(bar.CanvasSize)
@@ -421,7 +513,6 @@ end
 
 function PANEL:AddMessage(...)
 	self:AddLine({...})
-
 	chat.PlaySound()
 end
 

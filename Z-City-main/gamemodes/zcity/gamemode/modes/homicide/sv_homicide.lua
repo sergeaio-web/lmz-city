@@ -186,61 +186,61 @@ MODE.LootTableStandard = {
 -- }
 
 MODE.TraitorWordsAdjectives = {
-	"pretty",
-	"sad",
-	"bad",
-	"cool",
-	"happy",
-	"ugly",
-	"funny",
-	"red",
-	"green",
-	"blue",
-	"yellow",
-	"orange",
-	"cyan",
-	"pink",
-	"mesmerizing",
+	"красивый",
+	"грустный",
+	"плохой",
+	"крутой",
+	"счастливый",
+	"уродливый",
+	"смешной",
+	"красный",
+	"зеленый",
+	"синий",
+	"желтый",
+	"оранжевый",
+	"голубой",
+	"розовый",
+	"завораживающий",
 	"",	--; да да
 }
 
 MODE.TraitorWords = {
-	"crate",
-	"death",
-	"man",
-	"revolver",
-	"door",
-	"pistol",
-	"traitor",
-	"gunman",
-	"ak rifle",
-	"bomb",
-	"cyanide",
-	"knife",
-	"pipe",
-	"axe",
-	"usp pistol",
-	"ar15 rifle",
-	"kar98k rifle",
-	"grenade",
-	"outside",
-	"building",
-	"ammo",
-	"bandage",
-	"medkit",
-	"painkillers",
-	"shotgun",
-	"melancholic",
-	"poison",
-	"murder",
+	"ящик",
+	"смерть",
+	"человек",
+	"револьвер",
+	"дверь",
+	"пистолет",
+	"предатель",
+	"стрелок",
+	"автомат ak",
+	"бомба",
+	"цианид",
+	"нож",
+	"труба",
+	"топор",
+	"пистолет usp",
+	"винтовка ar15",
+	"винтовка kar98k",
+	"граната",
+	"улица",
+	"здание",
+	"патроны",
+	"бинт",
+	"аптечка",
+	"обезболивающее",
+	"дробовик",
+	"меланхоличный",
+	"яд",
+	"убийство",
 }
 
 MODE.TraitorActions = {
-	"punch air or walls",
-	"jump",
-	"crouch",
-	"ragdoll randomly",
-	"spin around",
+	"бить воздух или стены",
+	"прыгать",
+	"приседать",
+	"случайно упасть",
+	"крутиться",
 }
 
 SetGlobalBool("RolesPlus_Enable", true)
@@ -258,11 +258,11 @@ MODE.Types.standard = {
 	ChanceFunction = function() return (zb.GetWorldSize() < ZBATTLE_BIGMAP) and (zb.ModesChances["standard"] or zb.modes["hmcd"].Types.standard.Chance) or 0 end,
 	LootTable = MODE.LootTableStandard,
 	Messages = {
-		[3] = "Everyone died.",
-		[1] = "The murderer has killed everyone.",
-		[0] = "The murderer was",
+		[3] = "Все мертвы.",
+		[1] = "Убийца убил всех.",
+		[0] = "Убийцей был...",
 	},
-	Message = "The murderer was ",
+	Message = "was the murder... ",
 	TraitorLoot = function(ply)
 		ply:Give("weapon_buck200knife")
 		ply:Give("weapon_hg_type59_tpik")
@@ -334,9 +334,9 @@ MODE.Types.wildwest = {
 	ChanceFunction = function() return (zb.GetWorldSize() < ZBATTLE_BIGMAP) and (zb.ModesChances["wildwest"] or zb.modes["hmcd"].Types.wildwest.Chance) or 0 end,
 	LootTable = MODE.LootTableStandard,
 	Messages = {
-		[3] = "The dead silence fills the empty city...",
-		[1] = "The town has fallen into the hands of crime.",
-		[0] = "The law was settled once again. The bastard is",
+		[3] = "Мертвая тишина наполняет пустой город...",
+		[1] = "Город оказался во власти преступности.",
+		[0] = "Закон был вновь восстановлен. Этот ублюдок...",
 	},
 	Message = "The criminal was ",
 	TraitorLoot = function(ply)
@@ -470,9 +470,9 @@ MODE.Types.gunfreezone = {
 	ChanceFunction = function() return (zb.GetWorldSize() < ZBATTLE_BIGMAP) and (zb.ModesChances["gunfreezone"] or zb.modes["hmcd"].Types.gunfreezone.Chance) or 0 end,
 	LootTable = MODE.LootTableStandard,
 	Messages = {
-		[3] = "Everyone died.",
-		[1] = "The murderer has killed everyone.",
-		[0] = "The murderer was",
+		[3] = "Все мертвы.",
+		[1] = "Убийца убил всех.",
+		[0] = "Убийцей был...",
 	},
 	Message = "The murderer was ",
 	TraitorLoot = function(ply)
@@ -546,9 +546,9 @@ MODE.Types.soe = {
 	ChanceFunction = function() return (zb.GetWorldSize() >= ZBATTLE_BIGMAP) and (zb.ModesChances["soe"] or zb.modes["hmcd"].Types.soe.Chance) or 0 end,
 	LootTable = MODE.LootTable,
 	Messages = {
-		[3] = "Everyone died.",
-		[1] = "The traitor has killed everyone.",
-		[0] = "The traitor was",
+		[3] = "Все мертвы.",
+		[1] = "Убийца убил всех.",
+		[0] = "Убийцей был...",
 	},
 	Message = "The traitor was ",
 	TraitorLoot = function(ply)
@@ -965,7 +965,7 @@ function MODE:RoundThink()
 			local count = math.min(#available, 5)
 	
 			if count > 0 then
-				PrintMessage(HUD_PRINTTALK, "SWAT team incoming!")
+				PrintMessage(HUD_PRINTTALK, "Приближается группа спецназа!")
 				EmitSound("snd_jack_hmcd_heli2.mp3", vector_origin, 0, CHAN_AUTO, 1, 125, 0, 100)
 				MODE:SpawnForce("swat", count)
 			end
@@ -980,7 +980,7 @@ function MODE:RoundThink()
 			local spawned = self:SpawnForce("nationalguard", count)
 			if spawned > 0 then
 				self.PoliceSpawned = true
-				PrintMessage(HUD_PRINTTALK, self.Types[self.Type].PoliceText or "National Guard have arrived.")
+				PrintMessage(HUD_PRINTTALK, self.Types[self.Type].PoliceText or "Прибыла Национальная гвардия.")
 				EmitSound(self.Types[self.Type].PoliceSound or "snd_jack_hmcd_heli2.mp3", vector_origin, 0, CHAN_AUTO, 1, 125, 0, 100)
 			end
 		end
@@ -1189,7 +1189,7 @@ hook.Add("PlayerCanPickupWeapon", "HMCD_TraitorRadioPickup", function( ply, weap
         if ply:HasWeapon("weapon_walkie_talkie") then
             weapon:Remove()
 			ply:SetActiveWeapon("weapon_walkie_talkie")
-			ply:ChatPrint("You hide the additional walkie talkie.")
+			ply:ChatPrint("Ты прячешь запасную рацию.")
         end
     end
 end)
@@ -1257,7 +1257,7 @@ function MODE:RoundStart()
 	
 	if(roles_choose)then
 		MODE.StartPlayersRoleSelection()
-		PrintMessage(HUD_PRINTTALK, "Traitor is choosing roles for " .. MODE.RoleChooseRoundStartTime ..  " seconds")
+		PrintMessage(HUD_PRINTTALK, "The traitor chooses roles for " .. MODE.RoleChooseRoundStartTime ..  " seconds")
 	else
 		MODE.ChoosingPlayersList = {}
 
@@ -1334,7 +1334,7 @@ function MODE:EndRound()
 	if self.Type then
 		if(MODE.RoleChooseRound)then
 			if(winner ~= 1)then
-				PrintMessage(HUD_PRINTTALK, "All traitors were stopped.")
+				PrintMessage(HUD_PRINTTALK, "Все предатели были остановлены.")
 				
 				for _, traitor in ipairs(traitors) do
 					net.Start("hmcd_announce_traitor_lose")
@@ -1354,17 +1354,17 @@ function MODE:EndRound()
 					traitor:GiveSkill( math.Rand(0.1,0.3) )
 					traitor:SetPData("zb_hmcd_t_wins",traitor:GetPData("zb_hmcd_t_wins",0) + 1)
 				end
-				PrintMessage(HUD_PRINTTALK, "Every innocent was murdered.")
+				PrintMessage(HUD_PRINTTALK, "Все люди были убиты.")
 			end
 			
 			timer.Simple(2, function()
 				if(players_alive == 0)then
-					PrintMessage(HUD_PRINTTALK, "No one survived.")
+					PrintMessage(HUD_PRINTTALK, "Никто не выжил.")
 				else
 					if(players_alive == 1)then
-						PrintMessage(HUD_PRINTTALK, "Only 1 survivor left in the city.")
+						PrintMessage(HUD_PRINTTALK, "В городе остался только один выживший.")
 					else
-						PrintMessage(HUD_PRINTTALK, players_alive .. " survivors left in the city.")
+						PrintMessage(HUD_PRINTTALK, players_alive .. "выжившие, оставшиеся в городе.")
 					end
 				end
 			end)
@@ -1477,11 +1477,11 @@ hook.Add("Player_Death", "HMCD_PlayerDeath", function(ply, _)
 			if not biggest_attacker or not IsValid(ply) then return end
 			
 			if biggest_attacker == ply:Name() then
-				ply:ChatPrint("You suicided.")
+				ply:ChatPrint("Ты покончил с собой.")
 			elseif not biggest_attacker then
-				ply:ChatPrint("You have died.")
+				ply:ChatPrint("Ты умер.")
 			else
-				ply:ChatPrint("You were killed by "..biggest_attacker..".")
+				ply:ChatPrint("Ты был убит "..biggest_attacker..".")
 			end
 		end
 	end)
